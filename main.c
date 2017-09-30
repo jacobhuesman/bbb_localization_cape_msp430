@@ -1,5 +1,5 @@
 #include <msp430g2553.h>
-
+#include <intrinsics.h>
 
 #define TXLED BIT0
 #define RXLED BIT6
@@ -7,7 +7,7 @@
 
 unsigned int i; //Counter
 
-int main(void)
+void initialize(void)
 {
     // Stop WatchDog Timer (WDT)
     WDTCTL = WDTPW + WDTHOLD;
@@ -30,13 +30,22 @@ int main(void)
 
     // Configure baud rate
     UCA0CTL1 |= UCSSEL_2; // SMCLK (slau144j.pdf page 430)
-    UCA0BR0 = 0x08; // 1MHz 115200
-    UCA0BR1 = 0x00; // 1MHz 115200
-    UCA0MCTL = UCBRS2 + UCBRS0; // Modulation UCBRSx = 5
-    UCA0CTL1 &= ~UCSWRST; // **Initialize USCI state machine**
-    //UC0IE |= UCA0RXIE; // Enable USCI_A0 RX interrupt
-    UC0IE |= UCA0TXIE; // Enable USCI_A0 TX interrupt
-    __bis_SR_register(CPUOFF + GIE); // Enter LPM0 w/ int until Byte RXed
+    UCA0BR0 = 0x08;       // 1MHz 115200
+    UCA0BR1 = 0x00;       // 1MHz 115200
+    UCA0CTL1 &= ~UCSWRST; // Release USCI for operation (slau144j.pdf page 445)
+    //UC0IE |= UCA0RXIE;    // Enable USCI_A0 RX interrupt
+    UC0IE |= UCA0TXIE;    // Enable USCI_A0 TX interrupt
+
+    // Enable Interrupts
+    __interrupt_enable();
+}
+
+
+int main(void)
+{
+    initialize();
+
+    // Wait for serial
     while (1)
     { }
 }
