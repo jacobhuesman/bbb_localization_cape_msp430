@@ -132,7 +132,15 @@ int write_data(uint8_t id, uint8_t start_address, uint8_t values_length, uint8_t
     return 1;
 }
 
+int set_position(uint8_t id, uint16_t position)
+{
+    uint8_t values[2];
+    values[0] = (uint8_t)(position >> 2);
+    values[1] = (uint8_t)position;
+    write_data(id, 0x1E, 2, values);
+}
 
+//TODO configure motor
 
 // Port 1 interrupt service routine
 #pragma vector=PORT1_VECTOR
@@ -182,8 +190,9 @@ int main(void)
         {
             // Send request
             //read_data(id, 0x03, 0x01);
-            uint8_t values[2] = {0x00, 0x03};
-            write_data(id, 0x1E, 2, values);
+            //uint8_t values[2] = {0x00, 0x03};
+            //write_data(id, 0x1E, 2, values);
+            set_position(1, 512);
 
 
             __delay_cycles(1E7);
