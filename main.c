@@ -19,7 +19,7 @@ uint8_t rx_packet[20];
 uint8_t tx_cb; // Current TX Byte
 uint8_t rx_cb;
 
-uint8_t packet_length = 8;
+uint8_t packet_length;
 
 void initialize(void)
 {
@@ -65,7 +65,7 @@ void initialize(void)
     __enable_interrupt();
 }
 
-uint8_t calculate_checksum(void)
+uint8_t calculate_checksum(uint8_t packet_length)
 {
     uint8_t sum = 0;
     int i;
@@ -80,15 +80,59 @@ int read_data(uint8_t id, uint8_t start_address, uint8_t data_length)
 {
     packet_length = 8;
 
+    // Make packet
     tx_packet[2] = id;            // ID
     tx_packet[3] = 0x04;          // LENGTH
     tx_packet[4] = 0x02;          // INSTRUCTION
     tx_packet[5] = start_address; // PARAMETER1 (Start address)
     tx_packet[6] = data_length;   // PARAMETER2 (Length of data to be read)
-    tx_packet[7] = calculate_checksum();
+    tx_packet[7] = calculate_checksum(packet_length);
+
+    // Turn on interrupt
+    P2OUT |= BIT0;
+    UC0IE |= UCA0TXIE;
+
+    // Wait for interrupt to finish
+    while(UC0IE & UCA0TXIE);
+
+    // Switch TX direction
+    __delay_cycles(88);
+    P2OUT &= ~BIT0;
 
     return 1;
 }
+
+int write_data(uint8_t id, uint8_t start_address, uint8_t values_length, uint8_t* values)
+{
+    packet_length = 7 + values_length;
+
+    // Make packet
+    tx_packet[2] = id;                // ID
+    tx_packet[3] = values_length + 3; // LENGTH
+    tx_packet[4] = 0x03 ;             // INSTRUCTION
+    tx_packet[5] = start_address;     // PARAMETER1 (Start address)
+    int i;
+    for (i = 0; i < values_length; i++)
+    {
+        tx_packet[6 + i] = values[i];
+    }
+    tx_packet[6 + values_length] = calculate_checksum(packet_length);
+
+    // Turn on interrupt
+    P2OUT |= BIT0;
+    UC0IE |= UCA0TXIE;
+
+    // Wait for interrupt to finish
+    while(UC0IE & UCA0TXIE);
+
+    // Switch TX direction
+    __delay_cycles(88);
+    P2OUT &= ~BIT0;
+
+    return 1;
+}
+
+
 
 // Port 1 interrupt service routine
 #pragma vector=PORT1_VECTOR
@@ -136,15 +180,11 @@ int main(void)
     {
         if(button_pressed)
         {
-            // Send read request
-            read_data(id, 0x03, 0x01);
-            P2OUT |= BIT0;
-            UC0IE |= UCA0TXIE;
+            // Send request
+            //read_data(id, 0x03, 0x01);
+            uint8_t values[2] = {0x00, 0x03};
+            write_data(id, 0x1E, 2, values);
 
-            while(UC0IE & UCA0TXIE);
-            __delay_cycles(88);
-
-            P2OUT &= ~BIT0;
 
             __delay_cycles(1E7);
             button_pressed = 0;
